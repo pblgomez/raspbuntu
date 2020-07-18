@@ -1,0 +1,4 @@
+---
+hostname: raspbuntu
+tz: "Europe/London"
+pihole_password: "mipassword"

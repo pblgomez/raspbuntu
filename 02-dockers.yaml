@@ -1,0 +1,57 @@
+---
+- hosts: raspbuntu
+
+
+  vars_files:
+    - vars.yaml
+
+
+  tasks:
+    - name: Get username
+      shell: who | awk '{print $1}'
+      changed_when: false
+      become: false
+      register: whoami
+
+
+    - docker_compose:
+        project_name: pihole
+        definition:
+          version: '3.7'
+          services:
+            pihole:
+              container_name: pihole
+              image: pihole/pihole:v5.1.1
+              environment:
+                PUID: 1000
+                PGID: 1000
+                TZ: "{{ tz }}"
+                WEBPASSWORD: "{{ pihole_password }}"
+              ports:
+                - "53:53/tcp"
+                - "53:53/udp"
+                - "67:67/udp"
+                - "8080:80/tcp"
+              volumes:
+                 - '~/configs/pihole/etc-pihole/:/etc/pihole/'
+                 - '~/configs/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d/'
+              dns:
+                - 127.0.0.1
+                - 208.67.220.220
+              # Recommended but not required (DHCP needs NET_ADMIN)
+              #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
+              cap_add:
+                - NET_ADMIN
+              restart: unless-stopped
+#     register: output
+#   - debug:
+#       var: output
+
+    - name: Recursively change ownership of docker configs directory
+      become: yes
+      file:
+        path: "/home/{{whoami.stdout_lines[0]}}/configs"
+        state: directory
+        recurse: yes
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
