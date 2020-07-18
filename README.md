@@ -6,7 +6,7 @@ Download and install image with balena etcher or similar
 
 ### Wifi (Optional)
 inside system-boot partition modify network-config ucomment and modify:
-```
+```yaml
 wifis:
   wlan0:
   dhcp4: true
