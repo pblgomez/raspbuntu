@@ -7,12 +7,14 @@
 
 
   tasks:
-    - name: Get username
-      shell: who | awk '{print $1}'
-      changed_when: false
-      become: false
-      register: whoami
 
+    - name: Copy secret creds.json (eth_scrapper)
+      copy:
+        src: secrets/creds.json
+        dest: ~/configs/eth_scrapper/creds.json
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'
 
     - docker_compose:
         project_name: pihole
@@ -43,14 +45,32 @@
               cap_add:
                 - NET_ADMIN
               restart: unless-stopped
-#     register: output
-#   - debug:
-#       var: output
+
+            eth_scrapper:
+              container_name: eth_scrapper
+              image: pablogomez/eth_scrapper:latest
+              environment:
+                - ETH_WALLET=0x90D93e426aE653BD20fdD8e65459A321df01fF02
+                - SHEET_NAME=TomasInv
+                - WORKSHEET_NAME=Kuaili
+              volumes:
+                - ~/configs/eth_scrapper/creds.json:/app/creds.json
+            restarter:
+              container_name: eth_scrapper-restarter
+              image: docker
+              volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+              command: ["/bin/sh", "-c", "while true; do sleep 28800; docker restart eth_scrapper; done"]
+              restart: unless-stopped
+
+
+#       register: output
+#     - debug:
+#         var: output
 
     - name: Recursively change ownership of docker configs directory
       become: yes
       file:
-        path: "/home/{{whoami.stdout_lines[0]}}/configs"
+        path: "/home/{{ ansible_user }}/configs"
         state: directory
         recurse: yes
         owner: "{{ ansible_user }}"
